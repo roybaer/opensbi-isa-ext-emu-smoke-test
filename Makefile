@@ -1,40 +1,34 @@
-# optionally replace with your own toolchain
-CROSS_COMPILE ?= riscv64-linux-gnu-
 
 # e.g. "path/to/qemu-8.0.2/build/", mind the trailing "/"
 QEMU_PREFIX ?=
 # e.g. "-bios path/to/opensbi/fw_dynamic.bin"
-QEMU_OPTION ?=
+QEMU_OPTION ?= -bios ../opensbi/build/platform/generic/firmware/fw_dynamic.bin
+# the emulated CPU, e.g. sifive-u54 or rva22s64,v=true
+QEMU_CPU ?= sifive-u54
 
-ARCH := rv64imafdc_zicsr_zifencei
+ARCH := rv64imafdcv_zicsr_zifencei_zba_zbb_zbc_zbs_zfh_zicond_zimop_zcmop_zcb_zfa_zawrs_zicbom_zvbb
 ABI := lp64d
 
 # outputs
 INTERMEDIATE := intermediate.o
 QEMU_ELF := sbitest_qemu.elf
 QEMU_BIN := sbitest_qemu.bin
-K230_ELF := sbitest_k230.elf
-K230_BIN := sbitest_k230.bin
 
-all: elf bin k230-bin
+all: elf bin
 
 clean:
 	rm -f *.bin *.elf *.o
 
 elf:
-	$(CROSS_COMPILE)as -march=$(ARCH) -mabi=$(ABI) -o $(INTERMEDIATE) sbitest.S
-	$(CROSS_COMPILE)ld -T link.ld -o $(QEMU_ELF) $(INTERMEDIATE)
+	clang -c --target=riscv64 -march=$(ARCH) -mabi=$(ABI) -o $(INTERMEDIATE) sbitest.S
+	ld.lld -T link.ld -o $(QEMU_ELF) $(INTERMEDIATE)
 
 bin: elf
-	$(CROSS_COMPILE)objcopy -O binary $(QEMU_ELF) $(QEMU_BIN)
+	llvm-objcopy -O binary $(QEMU_ELF) $(QEMU_BIN)
 
 run: elf
-	$(QEMU_PREFIX)qemu-system-riscv64 $(QEMU_OPTION) \
+	$(QEMU_PREFIX)qemu-system-riscv64 -cpu $(QEMU_CPU) $(QEMU_OPTION) \
 		-machine virt -nographic -kernel $(QEMU_ELF)
 
 objdump: elf
-	$(CROSS_COMPILE)objdump -D $(QEMU_ELF)
-
-k230-bin: elf
-	$(CROSS_COMPILE)ld -T k230.ld -o $(K230_ELF) $(INTERMEDIATE)
-	$(CROSS_COMPILE)objcopy -O binary $(K230_ELF) $(K230_BIN)
+	llvm-objdump -D $(QEMU_ELF)
