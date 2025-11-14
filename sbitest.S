@@ -895,7 +895,33 @@ _start:
 
         .no_v:
 
-
+        # test Supm, RVA23
+        j       .after_var_for_supm
+        .var_for_supm:
+        .word   1
+        .after_var_for_supm:
+        lla     a0, str_supm
+        call    print_str16
+        # set up pointer masking
+        li      a7, 0x46574654  # SBI_EXT_FWFT
+        li      a6, 0  # SBI_EXT_FWFT_SET
+        li      a0, 5  # SBI_FWFT_POINTER_MASKING_PMLEN
+        li      a1, 7  # number of bits to mask
+        ecall
+        # try to write variable with pointer masking
+        lla     t0, .var_for_supm
+        li      t1, 0xaa00000000000000
+        or      t1, t0, t1
+        li      t2, 2
+        sw      t2, (t1)
+        lw      t3, (t0)
+        addi    a0, t3, -2
+        call    print_success
+        # disable pointer masking
+        li      a7, 0x46574654  # SBI_EXT_FWFT
+        li      a6, 0  # SBI_EXT_FWFT_SET
+        li      a0, 5  # SBI_FWFT_POINTER_MASKING_PMLEN
+        li      a1, 0  # number of bits to mask
 
 
         # try to shut down the system/emulator
@@ -972,3 +998,5 @@ str_zicbom:
 .string "\r\nTest Zicbom \r\n"
 str_zvbb:
 .string "\r\nTest Zvbb   \r\n"
+str_supm:
+.string "\r\nTest Supm   \r\n"
